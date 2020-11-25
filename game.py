@@ -43,6 +43,29 @@ def redraw_window(players, balls, game_time, score):
 		text = NAME_FONT.render(p["name"], 1, (0,0,0))
 		WIN.blit(text, (p["x"] - text.get_width()/2, p["y"] - text.get_height()/2))
 
+def convert_time(t):
+	"""
+	converts a time given in seconds to a time in
+	minutes
+
+	:param t: int
+	:return: string
+	"""
+	if type(t) == str:
+		return t
+
+	if int(t) < 60:
+		return str(t) + "s"
+	else:
+		minutes = str(t // 60)
+		seconds = str(t % 60)
+
+		if int(seconds) < 10:
+			seconds = "0" + seconds
+
+		return minutes + ":" + seconds
+
+
 def main(name):
 	"""
 	function for running the game,
@@ -60,3 +83,21 @@ def main(name):
 
 	# setup the clock, limit to 30fps
 	clock = pygame.time.Clock()
+
+ 	# get users name
+	while True:
+ 		name = input("Please enter your name: ")
+ 		if  0 < len(name) < 20:
+ 			break
+ 		else:
+ 			print("Error, this name is not allowed (must be between 1 and 19 characters [inclusive])")
+
+# make window start in top left hand corner
+os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (0,30)
+
+# setup pygame window
+WIN = pygame.display.set_mode((W,H))
+pygame.display.set_caption("Blobs")
+
+# start game
+main(name) 	
