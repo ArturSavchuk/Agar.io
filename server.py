@@ -45,3 +45,39 @@ start = False
 stat_time = 0
 game_time = "Starting Soon"
 nxt = 1
+
+
+def release_mass(players):
+	"""
+	releases the mass of players
+
+	:param players: dict
+	:return: None
+	"""
+	for player in players:
+		p = players[player]
+		if p["score"] > 8:
+			p["score"] = math.floor(p["score"]*0.95)
+
+
+def check_collision(players, balls):
+	"""
+	checks if any of the player have collided with any of the balls
+
+	:param players: a dictonary of players
+	:param balls: a list of balls
+	:return: None
+	"""
+	to_delete = []
+	for player in players:
+		p = players[player]
+		x = p["x"]
+		y = p["y"]
+		for ball in balls:
+			bx = ball[0]
+			by = ball[1]
+
+			dis = math.sqrt((x - bx)**2 + (y-by)**2)
+			if dis <= START_RADIUS + p["score"]:
+				p["score"] = p["score"] + 0.5
+				balls.remove(ball)
