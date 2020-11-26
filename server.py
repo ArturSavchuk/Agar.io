@@ -47,6 +47,7 @@ game_time = "Starting Soon"
 nxt = 1
 
 
+
 def release_mass(players):
 	"""
 	releases the mass of players
@@ -83,7 +84,30 @@ def create_balls(balls, n):
 				break
 
 		balls.append((x,y, random.choice(colors)))
-		
+
+
+def get_start_location(players):
+	"""
+	picks a start location for a player based on other player
+	locations. It will ensure it does not spawn inside another player
+
+	:param players: dict
+	:return: tuple (x,y)
+	"""
+	while True:
+		stop = True
+		x = random.randrange(0,W)
+		y = random.randrange(0,H)
+		for player in players:
+			p = players[player]
+			dis = math.sqrt((x - p["x"])**2 + (y-p["y"])**2)
+			if dis <= START_RADIUS + p["score"]:
+				stop = False
+				break
+		if stop:
+			break
+	return (x,y)
+
 
 def player_collision(players):
 	"""
@@ -130,3 +154,134 @@ def check_collision(players, balls):
 			if dis <= START_RADIUS + p["score"]:
 				p["score"] = p["score"] + 0.5
 				balls.remove(ball)
+				
+
+def threaded_client(conn, _id):
+	"""
+	runs in a new thread for each player connected to the server
+
+	:param con: ip address of connection
+	:param _id: int
+	:return: None
+	"""
+	global connections, players, balls, game_time, nxt, start
+
+	current_id = _id
+
+	# recieve a name from the client
+	data = conn.recv(16)
+	name = data.decode("utf-8")
+	print("[LOG]", name, "connected to the server.")
+
+	# Setup properties for each new player
+	color = colors[current_id]
+	x, y = get_start_location(players)
+	players[current_id] = {"x":x, "y":y,"color":color,"score":0,"name":name}  # x, y color, score, name
+
+	# pickle data and send initial info to clients
+	conn.send(str.encode(str(current_id)))
+
+	# server will recieve basic commands from client
+	# it will send back all of the other clients info
+	'''
+	commands start with:
+	move
+	jump
+	get
+	id - returns id of client
+	'''
+	while True:
+
+		if start:
+			game_time = round(time.time()-start_time)
+			# if the game time passes the round time the game will stop
+			if game_time >= ROUND_TIME:
+				start = False
+			else:
+				if game_time // MASS_LOSS_TIME == nxt:
+					nxt += 1
+					release_mass(players)
+					print(f"[GAME] {name}'s Mass depleting")
+		try:
+			# Recieve data from client
+			data = conn.recv(32)
+
+			if not data:
+				break
+
+			data = data.decode("utf-8")
+			#print("[DATA] Recieved", data, "from client id:", current_id)
+
+			# look for specific commands from recieved data
+			if data.split(" ")[0] == "move":
+				split_data = data.split(" ")
+				x = int(split_data[1])
+				y = int(split_data[2])
+				players[current_id]["x"] = x
+				players[current_id]["y"] = y
+
+				# only check for collison if the game has started
+				if start:
+					check_collision(players, balls)
+					player_collision(players)
+
+				# if the amount of balls is less than 150 create more
+				if len(balls) < 150:
+					create_balls(balls, random.randrange(100,150))
+					print("[GAME] Generating more orbs")
+
+				send_data = pickle.dumps((balls,players, game_time))
+
+			elif data.split(" ")[0] == "id":
+				send_data = str.encode(str(current_id))  # if user requests id then send it
+
+			elif data.split(" ")[0] == "jump":
+				send_data = pickle.dumps((balls,players, game_time))
+			else:
+				# any other command just send back list of players
+				send_data = pickle.dumps((balls,players, game_time))
+
+			# send data back to clients
+			conn.send(send_data)
+
+		except Exception as e:
+			print(e)
+			break  # if an exception has been reached disconnect client
+
+		time.sleep(0.001)
+
+	# When user disconnects	
+	print("[DISCONNECT] Name:", name, ", Client Id:", current_id, "disconnected")
+
+	connections -= 1 
+	del players[current_id]  # remove client information from players list
+	conn.close()  # close connection
+
+
+# MAINLOOP
+
+# setup level with balls
+create_balls(balls, random.randrange(200,250))
+
+print("[GAME] Setting up level")
+print("[SERVER] Waiting for connections")
+
+# Keep looping to accept new connections
+while True:
+	
+	host, addr = S.accept()
+	print("[CONNECTION] Connected to:", addr)
+
+	# start game when a client on the server computer connects
+	if addr[0] == SERVER_IP and not(start):
+		start = True
+		start_time = time.time()
+		print("[STARTED] Game Started")
+
+	# increment connections start new thread then increment ids
+	connections += 1
+	start_new_thread(threaded_client,(host,_id))
+	_id += 1
+
+# when program ends
+print("[SERVER] Server offline")
