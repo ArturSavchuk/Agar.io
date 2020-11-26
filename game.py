@@ -42,6 +42,25 @@ def redraw_window(players, balls, game_time, score):
 		# render and draw name for each player
 		text = NAME_FONT.render(p["name"], 1, (0,0,0))
 		WIN.blit(text, (p["x"] - text.get_width()/2, p["y"] - text.get_height()/2))
+	# draw scoreboard
+	sort_players = list(reversed(sorted(players, key=lambda x: players[x]["score"])))
+	title = TIME_FONT.render("Scoreboard", 1, (0,0,0))
+	start_y = 25
+	x = W - title.get_width() - 10
+	WIN.blit(title, (x, 5))
+
+	ran = min(len(players), 3)
+	for count, i in enumerate(sort_players[:ran]):
+		text = SCORE_FONT.render(str(count+1) + ". " + str(players[i]["name"]), 1, (0,0,0))
+		WIN.blit(text, (x, start_y + count * 20))
+
+	# draw time
+	text = TIME_FONT.render("Time: " + convert_time(game_time), 1, (0,0,0))
+	WIN.blit(text,(10,10))
+	# draw score
+	text = TIME_FONT.render("Score: " + str(round(score)),1,(0,0,0))
+	WIN.blit(text,(10,15 + text.get_height()))
+	
 
 def convert_time(t):
 	"""
@@ -84,6 +103,59 @@ def main(name):
 	# setup the clock, limit to 30fps
 	clock = pygame.time.Clock()
 
+	run = True
+	while run:
+		clock.tick(30) # 30 fps max
+		player = players[current_id]
+		vel = START_VEL - round(player["score"]/14)
+		if vel <= 1:
+			vel = 1
+
+		# get key presses
+		keys = pygame.key.get_pressed()
+
+		data = ""
+		# movement based on key presses
+		if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+			if player["x"] - vel - PLAYER_RADIUS - player["score"] >= 0:
+				player["x"] = player["x"] - vel
+
+		if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+			if player["x"] + vel + PLAYER_RADIUS + player["score"] <= W:
+				player["x"] = player["x"] + vel
+
+		if keys[pygame.K_UP] or keys[pygame.K_w]:
+			if player["y"] - vel - PLAYER_RADIUS - player["score"] >= 0:
+				player["y"] = player["y"] - vel
+
+		if keys[pygame.K_DOWN] or keys[pygame.K_s]:
+			if player["y"] + vel + PLAYER_RADIUS + player["score"] <= H:
+				player["y"] = player["y"] + vel
+
+		data = "move " + str(player["x"]) + " " + str(player["y"])
+
+		# send data to server and recieve back all players information
+		balls, players, game_time = server.send(data)
+
+		for event in pygame.event.get():
+			# if user hits red x button close window
+			if event.type == pygame.QUIT:
+				run = False
+
+			if event.type == pygame.KEYDOWN:
+				# if user hits a escape key close program
+				if event.key == pygame.K_ESCAPE:
+					run = False
+
+		# redraw window then update the frame
+		redraw_window(players, balls, game_time, player["score"])
+		pygame.display.update()
+
+	server.disconnect()
+	pygame.quit()
+	quit()
+
+
  	# get users name
 	while True:
  		name = input("Please enter your name: ")
@@ -91,6 +163,7 @@ def main(name):
  			break
  		else:
  			print("Error, this name is not allowed (must be between 1 and 19 characters [inclusive])")
+
 
 # make window start in top left hand corner
 os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (0,30)
