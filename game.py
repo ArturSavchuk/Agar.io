@@ -60,7 +60,6 @@ def redraw_window(players, balls, game_time, score):
 	# draw score
 	text = TIME_FONT.render("Score: " + str(round(score)),1,(0,0,0))
 	WIN.blit(text,(10,15 + text.get_height()))
-	
 
 def convert_time(t):
 	"""
@@ -151,18 +150,19 @@ def main(name):
 		redraw_window(players, balls, game_time, player["score"])
 		pygame.display.update()
 
+
 	server.disconnect()
 	pygame.quit()
 	quit()
 
 
  	# get users name
-	while True:
- 		name = input("Please enter your name: ")
- 		if  0 < len(name) < 20:
- 			break
- 		else:
- 			print("Error, this name is not allowed (must be between 1 and 19 characters [inclusive])")
+while True:
+ 	name = input("Please enter your name: ")
+ 	if  0 < len(name) < 20:
+ 		break
+ 	else:
+ 		print("Error, this name is not allowed (must be between 1 and 19 characters [inclusive])")
 
 
 # make window start in top left hand corner
